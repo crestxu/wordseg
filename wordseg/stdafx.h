@@ -19,7 +19,9 @@
 #include<cstdio>
 #include<fstream>
 #include<cctype>
+#include<hash_map>
 using namespace std;
+using namespace stdext;
 
 // TODO: 在此处引用程序需要的其他头文件
 

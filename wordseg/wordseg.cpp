@@ -162,7 +162,7 @@ int compare(void *a,void *b)
 }
 
 
-void  process_words(wstring &m,map<wstring,chinese_word>& f_words)
+void  process_words(wstring &m,hash_map<wstring,chinese_word>& f_words)
 {
 
 	//·´Ë³ÐòÉ¨Ãè
@@ -174,10 +174,21 @@ void  process_words(wstring &m,map<wstring,chinese_word>& f_words)
 		for(iter2=iter;iter2!=m.rend();iter2++)
 		{
 			tmp+=*iter2;
-			wstring item=tmp.substr(0,1); //»ñÈ¡ÓÒÁÚ×Ö
-			wstring item_tmp=tmp.substr(1,d);
-			wstring item2(item_tmp.rbegin(),item_tmp.rend());
-			map<wstring,chinese_word>::iterator mit;
+			wstring item,item_tmp,item2;
+			if(tmp.length()>d)
+			{
+				item=tmp.substr(0,1); //»ñÈ¡ÓÒÁÚ×Ö
+			    item_tmp=tmp.substr(1,d);
+				item2=wstring(item_tmp.rbegin(),item_tmp.rend());
+			}
+			else
+			{
+				item=L"";
+				item2=wstring(tmp.rbegin(),tmp.rend());;
+
+			}
+			//wcout<<item2<<L" "<<item<<endl;
+			hash_map<wstring,chinese_word>::iterator mit;
 			if((mit=f_words.find(item2))==f_words.end())
 			{
 				chinese_word tmpword;
@@ -216,8 +227,75 @@ void  process_words(wstring &m,map<wstring,chinese_word>& f_words)
 	}
 
 }
+void  process_words_right(wstring &instr,hash_map<wstring,chinese_word>& f_words)
+{
+	wstring m(instr.rbegin(),instr.rend()); //×Ö·û´®ÄæÐò
 
-int process_line(wstring &str,map<wstring,chinese_word>& f_words,words_t& content)
+	//·´Ë³ÐòÉ¨Ãè
+	wstring::reverse_iterator iter=m.rbegin();
+	wstring::reverse_iterator iter2;
+	for(;iter!=m.rend();iter++)
+	{
+		wstring tmp=L"";
+		for(iter2=iter;iter2!=m.rend();iter2++)
+		{
+			tmp+=*iter2;
+			wstring item,item_tmp,item2;
+			if(tmp.length()>d)
+			{
+				item=tmp.substr(0,1); //»ñÈ¡ÓÒÁÚ×Ö
+			    item_tmp=tmp.substr(1,d);
+				item2=wstring(item_tmp.begin(),item_tmp.end());
+			}
+			else
+			{
+				item=L"";
+				item2=wstring(tmp.begin(),tmp.end());;
+
+			}
+			hash_map<wstring,chinese_word>::iterator mit;
+			//wcout<<item2<<L" "<<item<<endl;
+			//f_words.find(
+			if((mit=f_words.find(item2))==f_words.end())
+			{
+				/*chinese_word tmpword;
+				tmpword.str=item2;
+				//map<wstring,int>::hit;
+				//if((hit=tmpword.right_map.find(
+				if(item!=L"")
+				{
+					tmpword.left_map.insert(pair<wstring,int>(item,1));
+				}
+				f_words.insert(pair<wstring,chinese_word>(item2,tmpword));*/
+				cout<<"error"<<endl;
+			}
+			else
+			{
+				
+				map<wstring,int>::iterator hit;
+				if(item!=L"")
+				{
+			
+					if((hit=mit->second.left_map.find(item))!=mit->second.left_map.end())
+					{
+						hit->second++;
+
+					}
+					else
+					{
+
+						mit->second.left_map.insert(pair<wstring,int>(item,1));
+					}
+				}
+
+			}
+
+		}
+	}
+
+}
+
+int process_line(wstring &str,hash_map<wstring,chinese_word>& f_words,words_t& content)
 {
 
 	char buf[MAX_LINE];
@@ -235,6 +313,8 @@ int process_line(wstring &str,map<wstring,chinese_word>& f_words,words_t& conten
 		wstring tmpstr(wcs);
 		content.push_back(tmpstr);
 		process_words(tmpstr,f_words);
+		//cout<<endl;
+		process_words_right(tmpstr,f_words);
 		//wcout<<tmpstr<<endl;
 	}
 	return 0;
@@ -248,7 +328,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	fstream fs(filename);
 	string ms;
 	wstring m=L"";
-	map<wstring,chinese_word> f_words;
+	hash_map<wstring,chinese_word> f_words;
+	//hash_map<wstring,chinese_word> f_words2;
+	
 	words_t content;
 
 	while(!fs.eof()){
@@ -266,7 +348,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	cout<<"read words compelte"<<endl;
 
 	chinese_word_t c_vc;
-	map<wstring,chinese_word>::iterator m_it;
+	hash_map<wstring,chinese_word>::iterator m_it;
 	for(m_it=f_words.begin();m_it!=f_words.end();m_it++)
 	{
 		chinese_word tmp;
@@ -275,8 +357,11 @@ int _tmain(int argc, _TCHAR* argv[])
 		//	wcout<<m_it->first<<L" "<<m_it->second<<endl;
 		c_vc.push_back(tmp);
 	}
+	
 
 	sort(c_vc.begin(),c_vc.end(),greater<chinese_word>());
+	cout<<"process complete"<<endl;
+	cin.get();
 	print_words2(c_vc,5000);
 
 
