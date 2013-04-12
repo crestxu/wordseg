@@ -3,16 +3,19 @@
 
 #include "stdafx.h"
 #include <sstream> 
+#include<math.h>
 #define MAX_LINE 5000
 int d=5;
+int MAX=99999999;
 struct chinese_word{
 	wstring str;
 	int feq;  //频次
-	map<wstring,int> left_map;
-	map<wstring,int> right_map;
+	hash_map<wstring,int> left_map;
+	hash_map<wstring,int> right_map;
 	double left_h;
 	double right_h;
 	double arg;
+	double f_h; //最后的信息熵
 	chinese_word()
 	{
 		feq=0;
@@ -22,12 +25,20 @@ struct chinese_word{
 	}
 	bool   operator <  (const   chinese_word&   rhs   )  const   //升序排序时必须写的函数
 	{   
-		return   feq   <   rhs.feq; 
+		if(f_h==rhs.f_h)
+		{
+			return arg<rhs.arg;
+		}
+		return   f_h   <   rhs.f_h; 
 	}
 
 	bool   operator >  (const   chinese_word&   rhs   )  const   //降序排序时必须写的函数
 	{   
-		return   feq   >   rhs.feq; 
+		if(f_h==rhs.f_h)
+		{
+			return arg>rhs.arg;
+		}
+		return   f_h   >   rhs.f_h; 
 	}
 };
 typedef vector<wstring> words_t;
@@ -57,6 +68,27 @@ void print_words2(chinese_word_t &m,int max=-1)
 		{
 			i++;
 			wcout<<iter->str<<L" "<<iter->feq<<endl;
+		}
+	}
+}
+void output_words2(fstream &fs,chinese_word_t &m,int max=-1)
+{
+	chinese_word_t::iterator iter;
+	int i=0;
+	for(iter=m.begin();iter!=m.end();iter++)
+	{
+
+		if(max!=-1&&max<i) break;
+		if(iter->str.length()>=1)
+		{
+			i++;
+				fs<<iter->str.c_str()<<" "<<iter->arg<<" "<<iter->f_h<<endl;
+			//fs<<iter->str.c_str()<<" "<<iter->feq<<" "<<iter->left_h<<" "<<iter->right_h<<endl;
+		//	fs.write((char *) iter->str.c_str(), iter->str.length() * sizeof(wchar_t));
+			//fs.write(" ",1);
+			//wcout<<iter->str.c_str()<<L" "<<iter->feq<<L" "<<iter->left_h<<L" "<<iter->right_h<<endl;
+
+			wcout<<iter->str.c_str()<<L" "<<iter->arg<<L" "<<iter->f_h<<endl;
 		}
 	}
 }
@@ -177,8 +209,8 @@ void  process_words(wstring &m,hash_map<wstring,chinese_word>& f_words)
 			wstring item,item_tmp,item2;
 			if(tmp.length()>d)
 			{
-				item=tmp.substr(0,1); //获取右邻字
-			    item_tmp=tmp.substr(1,d);
+				item=tmp.substr(d,1); //获取右邻字
+			    item_tmp=tmp.substr(0,d);
 				item2=wstring(item_tmp.rbegin(),item_tmp.rend());
 			}
 			else
@@ -193,6 +225,7 @@ void  process_words(wstring &m,hash_map<wstring,chinese_word>& f_words)
 			{
 				chinese_word tmpword;
 				tmpword.str=item2;
+				tmpword.feq=1;
 				//map<wstring,int>::hit;
 				//if((hit=tmpword.right_map.find(
 				if(item!=L"")
@@ -205,7 +238,7 @@ void  process_words(wstring &m,hash_map<wstring,chinese_word>& f_words)
 			{
 				
 				mit->second.feq++;
-				map<wstring,int>::iterator hit;
+				hash_map<wstring,int>::iterator hit;
 				if(item!=L"")
 				{
 			
@@ -243,8 +276,8 @@ void  process_words_right(wstring &instr,hash_map<wstring,chinese_word>& f_words
 			wstring item,item_tmp,item2;
 			if(tmp.length()>d)
 			{
-				item=tmp.substr(0,1); //获取右邻字
-			    item_tmp=tmp.substr(1,d);
+				item=tmp.substr(d,1); //获取右邻字
+			    item_tmp=tmp.substr(0,d);
 				item2=wstring(item_tmp.begin(),item_tmp.end());
 			}
 			else
@@ -272,7 +305,7 @@ void  process_words_right(wstring &instr,hash_map<wstring,chinese_word>& f_words
 			else
 			{
 				
-				map<wstring,int>::iterator hit;
+				hash_map<wstring,int>::iterator hit;
 				if(item!=L"")
 				{
 			
@@ -320,19 +353,108 @@ int process_line(wstring &str,hash_map<wstring,chinese_word>& f_words,words_t& c
 	return 0;
 
 }
+double compute_h(hash_map<wstring,int> &h_map)
+{
+	double mm=0.0;
+	hash_map<wstring,int>::iterator m_it;
+	int count=0;
+	for(m_it=h_map.begin();m_it!=h_map.end();m_it++)
+	{
+		count+=m_it->second;
+
+
+	}
+	//cout<<count<<endl;
+	if(count==0)
+		return MAX;
+	for(m_it=h_map.begin();m_it!=h_map.end();m_it++)
+	{
+		if(m_it->second==0) continue;
+		mm+=fabs(m_it->second*log((double)m_it->second/double(count)));
+
+	}
+	
+	return mm;
+}
+int compute_words(hash_map<wstring,chinese_word> &f_words,vector<chinese_word> &c_vc)
+{
+	hash_map<wstring,chinese_word>::iterator m_it;
+	for(m_it=f_words.begin();m_it!=f_words.end();m_it++)
+	{
+		chinese_word tmp;
+		m_it->second.left_h=compute_h(m_it->second.left_map);
+		m_it->second.right_h=compute_h(m_it->second.right_map);
+
+
+
+		m_it->second.f_h=m_it->second.left_h>m_it->second.right_h?m_it->second.right_h:m_it->second.left_h;
+		m_it->second.left_map.clear();
+		m_it->second.right_map.clear();
+		//cout<<m_it->second.left_h<<" "<<m_it->second.right_h<<endl;
+
+		wstring tmpstr=m_it->first;
+		//枚举该文本片段有哪两个组合而来
+		bool has_l,has_r;
+		int feq_l,feq_r;
+		double min_feq=MAX;
+		for(int i=1;i<=tmpstr.length();i++)
+		{
+			has_l=false;
+			has_r=false;
+			wstring str_l,str_r;
+			str_l=tmpstr.substr(0,i);
+			str_r=tmpstr.substr(i);
+			hash_map<wstring,chinese_word>::iterator l_it,r_it;
+
+			if((l_it=f_words.find(str_l))!=f_words.end())
+			{
+				has_l=true;
+				feq_l=l_it->second.feq;
+			}
+			if(str_r==L"") continue;
+			if((r_it=f_words.find(str_r))!=f_words.end())
+			{
+				has_r=true;
+				feq_r=r_it->second.feq;
+			}
+			if(has_l&&has_r)
+			{
+				double tmp_feq=m_it->second.feq/double(feq_r*feq_l);
+				if(tmp_feq<min_feq)
+				{
+					min_feq=tmp_feq;
+				}
+			}
+
+		}
+		m_it->second.arg=min_feq;
+		tmp=m_it->second;
+
+		//	wcout<<m_it->first<<L" "<<m_it->second<<endl;
+		c_vc.push_back(tmp);
+	//	cin.get();
+	}
+	
+
+	sort(c_vc.begin(),c_vc.end(),greater<chinese_word>());
+
+	return 0;
+
+}
 int _tmain(int argc, _TCHAR* argv[])
 {
 	std::locale loc = std::locale::global( std::locale("chs",std::locale::ctype) );
 	setlocale(LC_CTYPE,"");
 	const char *filename="a.txt";
+	const char *filename2="b.txt";
 	fstream fs(filename);
+	fstream ofs(filename2,wios::out|wios::binary);
+	//ofs.imbue(locale(std::locale("chs"),"",LC_CTYPE));
 	string ms;
 	wstring m=L"";
 	hash_map<wstring,chinese_word> f_words;
-	//hash_map<wstring,chinese_word> f_words2;
-	
+	chinese_word_t c_vc;
 	words_t content;
-
 	while(!fs.eof()){
 		fs>>ms;
 		wchar_t wcs[MAX_LINE];
@@ -341,30 +463,13 @@ int _tmain(int argc, _TCHAR* argv[])
 		wstring tmpstr(wcs);
 		filter(tmpstr);
 		process_line(tmpstr,f_words,content);
-		//cin.get();
 	}
 	fs.close();
-
 	cout<<"read words compelte"<<endl;
-
-	chinese_word_t c_vc;
-	hash_map<wstring,chinese_word>::iterator m_it;
-	for(m_it=f_words.begin();m_it!=f_words.end();m_it++)
-	{
-		chinese_word tmp;
-		tmp.str=m_it->first;
-		tmp=m_it->second;
-		//	wcout<<m_it->first<<L" "<<m_it->second<<endl;
-		c_vc.push_back(tmp);
-	}
-	
-
-	sort(c_vc.begin(),c_vc.end(),greater<chinese_word>());
+	compute_words(f_words,c_vc);
 	cout<<"process complete"<<endl;
-	cin.get();
-	print_words2(c_vc,5000);
-
-
+	output_words2(ofs,c_vc);
+	ofs.close();
 	return 0;
 }
 
